@@ -51,7 +51,7 @@ def main():
         time.sleep(15)
 
         # Reload the page every 60 seconds
-        st.experimental_rerun()
+        st.rerun()
 
 # df = df[df['temperature'] >= -1]
 
