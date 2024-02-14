@@ -15,11 +15,47 @@ supabase = create_client(API_URL, API_KEY)
 st.set_page_config(page_title="Dashboard", layout='wide', initial_sidebar_state='collapsed')
 
 def main():
+    # Retrieve coordinates from the Supabase table
+    coordinates = get_coordinates()
+
     # Default map location: Kampala
     kampala_latitude = 0.347596
     kampala_longitude = 32.582520
     kampala_df = pd.DataFrame({'latitude': [kampala_latitude], 'longitude': [kampala_longitude]})
-    st.map(kampala_df)
+    map_container = st.empty()
+
+    if coordinates:
+        # Display coordinates from the Supabase table
+        name, latitude, longitude = coordinates
+        new_data = pd.DataFrame({'latitude': [float(latitude)], 'longitude': [float(longitude)]})
+        map_data = map_container.map(new_data)
+        st.write(coordinates)
+    else:
+        latitude, longitude = kampala_latitude, kampala_longitude
+        map_data = map_container.map(kampala_df)
+
+
+    # name, latitude, longitude = coordinates
+
+
+    # Text box for entering coordinates
+    st.sidebar.header("Enter Coordinates")
+    name = st.sidebar.text_input("Name", '')
+    latitude = st.sidebar.text_input("Latitude", '')
+    longitude = st.sidebar.text_input("Longitude", '')
+
+
+    # Button to display coordinates on the map
+    if st.sidebar.button("Enter"):
+        if name and latitude and longitude:
+            # Clear the existing map
+            map_container.empty()
+            # Update the existing map with new coordinates
+            new_data = pd.DataFrame({'latitude': [float(latitude)], 'longitude': [float(longitude)]})
+            map_data = map_container.map(new_data)
+            log_coordinates(name, float(latitude), float(longitude))
+            st.sidebar.success("Coordinates logged successfully.")
+
 
     while True:
         # Retrieve data from Supabase table
@@ -110,7 +146,42 @@ def display_latest_readings(df):
     # Display the figures side by side
     st.plotly_chart(fig, use_container_width=True)
 
+def log_coordinates(name, latitude, longitude):
+    # Insert coordinates into the Supabase table
+    supabase.table('locations').insert({'name': name, 'latitude': latitude, 'longitude': longitude}).execute()
+    # response = supabase.table('locations').insert({'latitude': latitude, 'longitude': longitude}).execute()
+    # if response['status'] == 201:
+        # st.sidebar.success("Coordinates logged successfully.")
+    # else:
+        # st.sidebar.error("Failed to log coordinates. Error: {}".format(response['error']))
+    
+ # Function to retrieve coordinates from the Supabase table
+def get_coordinates():
+    supabase_data = supabase.table('locations').select('*').order('created_at').execute().data
+    
+    # Reverse the order of the list to achieve descending order
+    supabase_data.reverse()
 
+    # Process data into a DataFrame
+    lf = pd.DataFrame()
+    data = []
+
+    for index, row in enumerate(supabase_data):
+        row["created_at"] = row["created_at"].split(".")[0]
+        row["time"] = row["created_at"].split("T")[1]
+        row["date"] = row["created_at"].split("T")[0]
+        row["DateTime"] = row["created_at"]
+        data.append(row)
+
+    lf = pd.DataFrame(data)
+    lf = lf.sort_values(by='DateTime')
+
+    clatitude = lf['latitude'].iloc[-1]
+    clongitude = lf['longitude'].iloc[-1]
+    name = lf['name'].iloc[-1]
+
+    return name, clatitude, clongitude
+    
 # Call the main function
 if __name__ == "__main__":
     main()
