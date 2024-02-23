@@ -84,7 +84,7 @@ def main():
         display_latest_readings(df)
 
         # Sleep for 10 seconds before reloading
-        time.sleep(15)
+        time.sleep(5)
 
         # Reload the page every 60 seconds
         st.rerun()
